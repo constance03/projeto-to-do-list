@@ -1,20 +1,20 @@
-//configurações iniciais
+// configurações iniciais
 
-    // criar o package.json
+//     criar o package.json
 // npm init -y
 
-    // editar os scripts do package.json
+//     editar os scripts do package.json
 // "start": "node ./build/index.js",
 // "build": "tsc",
 // "dev": "ts-node-dev ./src/index.ts"
 
-    // instalar typescript e tipagens do node e o ts-node-dev
+//     instalar typescript e tipagens do node e o ts-node-dev
 // npm i -D typescript @types/node ts-node-dev
 
-    // configurar o typescript
+//     configurar o typescript
 // npx tsc --init
 
-    // editar arquivo tsconfig.json
+//     editar arquivo tsconfig.json
 // {
 //     "compilerOptions": {
 //         "target": "ES6",
@@ -30,16 +30,16 @@
 //     }
 // }
 
-    // instalar express e cors & fazer a tipagem
+//     instalar express e cors & fazer a tipagem
 // npm i express cors
 // npm i -D @types/express @types/cors
 
-    // instalar knex e sqlite3 & tipagens
+//     instalar knex e sqlite3 & tipagens
 // npm i knex sqlite3
 // npm i -D @types/knex
 
-    // criar pasta data base e arquivos db e sql
-    // configurar arquivo knex no database
+//     criar pasta data base e arquivos db e sql
+//     configurar arquivo knex no database
 // import knex from "knex"
 // export const db = knex({
 //     client: "sqlite3",
@@ -57,7 +57,7 @@
 //     }
 // })
 
-    // criar e setar o arquivo index.ts dentro do src
+//     criar e setar o arquivo index.ts dentro do src
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { db } from './database/knex'
@@ -91,7 +91,7 @@ app.get("/ping", async (req: Request, res: Response) => {
     }
 })
 
-// ## Users <<<<<<<<<<<<
+// ## Users
 // - GET all users
 app.get("/users", async (req: Request, res: Response) => {
     try {
@@ -136,22 +136,35 @@ app.post("/users", async (req: Request, res: Response) => {
           res.status(400)
           throw new Error("'password' invalido, deve ser uma string")
       }
+
   
-        if (id.length < 1 || name.length < 1 || email.length < 1 || password.length < 1) {
+        if (id.length < 4 || name.length < 2) {
             res.status(400)
-            throw new Error("'id', 'name', 'email' ou 'password' devem ter no mínimo 1 caractere")
+            throw new Error("'id' deve ter pelo menos 4 caracteres ou 'name' deve ter no mínimo 2 caracteres")
         }
   
-          const newUser = { 
-              id, 
-              name,
-              email, 
-              password
-          }
+        const [userIdAlreadyExists]: TUserDB[] | undefined[] = await db("users").where({id})
+        
+        if (userIdAlreadyExists) {
+            res.status(400)
+            throw new Error("'userId' já existe")
+        }
+
+        const newUser = { 
+            id, 
+            name,
+            email, 
+            password
+        }
   
           await db("users").insert(newUser)
+
+          const [insertedUser]: TUserDB[] = await db("users").where({id})
   
-        res.status(200).send(`Cadastrado realizado com sucesso`)
+        res.status(201).send({
+            message: `Cadastrado de usuário realizado com sucesso`, 
+            user: insertedUser
+        })
   
     } catch (error) {
         console.log(error)
@@ -166,23 +179,28 @@ app.post("/users", async (req: Request, res: Response) => {
             res.send("Erro inesperado")
         }
     }
-  })
+})
 
 // - DELETE user by id
 app.delete("/users/:id", async (req: Request, res: Response) => {
     try {
         const idToDelete = req.params.id
 
-        const [user] = await db("users").where({id: idToDelete})
+        if (idToDelete[0] !== "f") {
+            res.status(400)
+            throw new Error("'idToDelete' deve iniciar com a letra 'f'")
+        }
 
+        const [user]: TUserDB[] | undefined[] = await db("users").where({id: idToDelete})
+        
         if (!user) {
-            res.status(404)
-            throw new Error ("'id' não encontrada")
+            res.status(400)
+            throw new Error("'id' não encontrado")
         }
 
         await db("users").del().where({id: idToDelete})
 
-        res.status(200).send({message: "Usuário deletado com sucesso"})
+        res.status(200).send({message: "User deletado com sucesso"})
 
     } catch (error) {
         console.log(error)
@@ -198,6 +216,7 @@ app.delete("/users/:id", async (req: Request, res: Response) => {
         }
     }
 })
+
 
 // ## Tasks
 // - GET all tasks
@@ -498,8 +517,8 @@ app.post("/tasks/:taskId/users/:userId", async (req: Request, res: Response) => 
 // - DELETE user from task by ids
 app.delete("/tasks/:taskId/users/:userId", async (req: Request, res: Response) => {
     try {
-        const taskIdToDelete = req.params.id
-        const userIdToDelete = req.params.id
+        const taskIdToDelete = req.params.taskId
+        const userIdToDelete = req.params.userId
 
         if (taskIdToDelete[0] !== "t") {
             res.status(400)
